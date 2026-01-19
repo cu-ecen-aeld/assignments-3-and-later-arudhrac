@@ -1,5 +1,9 @@
 #include "systemcalls.h"
-
+#include <stdlib.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/wait.h>
 /**
  * @param cmd the command to execute with system()
  * @return true if the command in @param cmd was executed
@@ -16,6 +20,12 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+
+    int syscall = system(cmd);
+    if(syscall == -1 || syscall > 0){
+        perror("System() call failed !\n");
+        return false;
+    }
 
     return true;
 }
@@ -59,9 +69,32 @@ bool do_exec(int count, ...)
  *
 */
 
+    int status;
+    pid_t pid = fork();
+
+    if (pid == -1) {
+        perror("fork");
+        return false;
+    }
+
+    if(pid == 0){
+        int execvprocess = execv(command[0],command);
+        if(execvprocess == -1){
+            perror("execv");
+            _exit(127);
+        }
+        return false;
+    }
+    
+    if (waitpid(pid, &status, 0) == -1) {
+        perror("waitpid");
+        return false;
+    }
+
     va_end(args);
 
-    return true;
+    //return true;
+    return WIFEXITED(status) && WEXITSTATUS(status) == 0;
 }
 
 /**
@@ -92,6 +125,42 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
+
+    pid_t pid;
+    int fd = open(outputfile, O_WRONLY | O_TRUNC | O_CREAT , 0644);
+
+    if(fd < 0){
+        perror("open");
+        return false;
+    }
+
+    switch (pid = fork())
+    {
+
+    case -1:
+        perror("fork");
+        exit(1);
+
+    case 0:
+        dup2(fd, STDOUT_FILENO);
+        close(fd);
+
+        int execvprocess = execv(command[0],command);
+        if(execvprocess == -1){
+            perror("execv");
+            write(STDOUT_FILENO,"execv fail\n",12);
+        }
+        exit(1);
+
+    default:
+        int status;
+        if(waitpid(pid,&status,0)==-1){
+            perror("waitpid\n");
+            return false;
+        }
+        else if(WIFEXITED (status)) return WEXITSTATUS (status);
+    }
+
 
     va_end(args);
 
