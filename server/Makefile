@@ -1,13 +1,16 @@
 CC ?= gcc
-CFLAGS ?= -Wall -Werror -g
+CFLAGS = -g -Wall -Wextra -pthread
 
 TARGET = aesdsocket
+SOURCES = aesdsocket.c
 
 all: $(TARGET)
 default: $(TARGET)
 
-$(TARGET): aesdsocket.c
-	$(CC) $(CFLAGS) -o $(TARGET) aesdsocket.c
+$(TARGET): $(SOURCES)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SOURCES)
 
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) *.o
+
+.PHONY: all default clean
